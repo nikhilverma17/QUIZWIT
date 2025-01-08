@@ -1,4 +1,3 @@
-// Import necessary dependencies and components
 import React, { useState, useEffect } from "react";
 import Team from "./Team";
 import Question from "./Question";
@@ -15,18 +14,17 @@ import {
   faGamepad,
   faSpinner,
   faPlay,
+  faSync
 } from "@fortawesome/free-solid-svg-icons";
 import audioManager from "../utils/audioManager";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Define constants
 const sections = questionsData.sections;
 const questionsPerSection = 6;
 const questionsPerTeam = 3;
 const totalRounds = 4;
 
 function QuizGame() {
-  // Define state variables (no changes here)
   const [currentTeam, setCurrentTeam] = useState(0);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [scores, setScores] = useState([0, 0]);
@@ -55,13 +53,29 @@ function QuizGame() {
   const [isTimerPaused, setIsTimerPaused] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [questionAudioTimeout, setQuestionAudioTimeout] = useState(null);
+  const [usedQuestions, setUsedQuestions] = useState(() => {
+    const savedUsedQuestions = localStorage.getItem('usedQuestions');
+    return savedUsedQuestions ? JSON.parse(savedUsedQuestions) : [];
+  });
+  const [showChangeButton, setShowChangeButton] = useState(false);
 
-  // useEffect for initial loading (no changes)
   useEffect(() => {
     setTimeout(() => setLoading(false), 2000);
   }, []);
 
-  // useEffect for audio cleanup (no changes)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "v") {
+        setShowChangeButton((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+
   useEffect(() => {
     return () => {
       if (audioManager && audioManager.stop) {
@@ -73,7 +87,6 @@ function QuizGame() {
     };
   }, [questionAudioTimeout]);
 
-  // Function to start the game (no changes)
   const startGame = () => {
     setGameStarted(true);
     if (audioManager && audioManager.play) {
@@ -81,7 +94,6 @@ function QuizGame() {
     }
   };
 
-  // Function to get available lifelines (no changes)
   const getAvailableLifelines = () => {
     const allLifelines = ["50-50", "hint", "change", "double", "doubleDip"];
     if (round === 1) {
@@ -90,12 +102,11 @@ function QuizGame() {
     return allLifelines;
   };
 
-  // Function to select a category (no changes)
   const selectCategory = (category) => {
-    const sectionQuestions = questionsData.questions.filter(
-      (q) => q.section === category
+    const availableQuestions = questionsData.questions.filter(
+      (q) => q.section === category && !usedQuestions.includes(q.question)
     );
-    const shuffledQuestions = shuffleArray(sectionQuestions).slice(
+    const shuffledQuestions = shuffleArray(availableQuestions).slice(
       0,
       questionsPerSection
     );
@@ -106,21 +117,32 @@ function QuizGame() {
     setSectionComplete(false);
     setShouldResetTimer(true);
     playQuestionAudio();
+
+    const newUsedQuestions = [...usedQuestions, ...shuffledQuestions.map(q => q.question)];
+    setUsedQuestions(newUsedQuestions);
+    localStorage.setItem('usedQuestions', JSON.stringify(newUsedQuestions));
+    resetUsedQuestionsIfNeeded();
   };
 
-  // Function to play question audio (no changes)
+  const resetUsedQuestionsIfNeeded = () => {
+    const totalQuestions = questionsData.questions.length;
+    if (usedQuestions.length >= totalQuestions * 0.2) {
+      setUsedQuestions([]);
+      localStorage.removeItem('usedQuestions');
+    }
+  };
+
   const playQuestionAudio = () => {
     if (audioManager && audioManager.stop && audioManager.play) {
       audioManager.stop("questionAppear");
       audioManager.play("questionAppear");
       const timeout = setTimeout(() => {
         audioManager.stop("questionAppear");
-      }, 90000); // 90 seconds
+      }, 61000); // 90 seconds
       setQuestionAudioTimeout(timeout);
     }
   };
 
-  // Function to handle answer selection (no changes)
   const handleAnswer = (selectedAnswerIndex) => {
     if (questionAudioTimeout) {
       clearTimeout(questionAudioTimeout);
@@ -150,7 +172,6 @@ function QuizGame() {
     const correct =
       selectedAnswerIndex === questions[currentQuestion].correctAnswer;
     
-    // Play sound regardless of when the answer is clicked
     if (correct) {
       if (audioManager && audioManager.play) {
         audioManager.play("correct");
@@ -169,7 +190,6 @@ function QuizGame() {
     setDoublePoints(false);
     setDoubleDipActive(false);
   
-    // Add a 4-second delay before showing the fact popup
     setTimeout(() => {
       setShowAnswer(false);
       setShowHint(false);
@@ -177,8 +197,6 @@ function QuizGame() {
     }, 4000);
   };
   
-
-  // Function to move to the next question (no changes)
   const nextQuestion = () => {
     setShowFact(false);
     setShowCorrectAnswer(false);
@@ -203,7 +221,6 @@ function QuizGame() {
     }
   };
 
-  // Function to handle when time is up (no changes)
   const handleTimeUp = () => {
     setQuestions((prevQuestions) => {
       const newQuestions = [...prevQuestions];
@@ -214,17 +231,14 @@ function QuizGame() {
       return newQuestions;
     });
     setShowTimeUpPopup(true);
-    
   };
 
-  // Function to handle moving to the next question after time is up (no changes)
   const handleNextQuestion = () => {
     setShowTimeUpPopup(false);
     setIsTimerPaused(false);
     nextQuestion();
   };
 
-  // Function to use a lifeline (no changes)
   const useLifeline = (lifeline) => {
     const availableLifelines = getAvailableLifelines();
     if (!availableLifelines.includes(lifeline)) {
@@ -249,9 +263,6 @@ function QuizGame() {
     }));
 
     setShouldResetTimer(false);
-    
-    // Try to play the audio, but don't throw an error if it fails
-    
 
     switch (lifeline) {
       case "50-50":
@@ -299,7 +310,6 @@ function QuizGame() {
     }
   };
 
-  // Function to handle Power Paplu lifeline (no changes)
   const handlePowerPaplu = (lifeline) => {
     if (powerPapluActive) {
       setPowerPapluActive(false);
@@ -317,7 +327,6 @@ function QuizGame() {
     }
   };
 
-  // Function to handle team name changes (no changes)
   const handleTeamNameChange = (index, name) => {
     setTeamNames((prev) => {
       const newNames = [...prev];
@@ -326,14 +335,43 @@ function QuizGame() {
     });
   };
 
-  // Function to check if a lifeline has been used (no changes)
   const isLifelineUsed = (lifeline) => {
     return Object.values(lifelinesUsed[currentTeam]).some(
       (roundLifelines) => roundLifelines[lifeline]
     );
   };
 
-  // Render loading screen (no changes)
+  const changeQuestion = () => {
+    const unusedQuestions = questionsData.questions.filter(
+      (q) => q.section === currentSection && !usedQuestions.includes(q.question)
+    );
+    if (unusedQuestions.length > 0) {
+      const newQuestion = unusedQuestions[Math.floor(Math.random() * unusedQuestions.length)];
+      setQuestions((prevQuestions) => {
+        const newQuestions = [...prevQuestions];
+        newQuestions[currentQuestion] = newQuestion;
+        return newQuestions;
+      });
+      setShouldResetTimer(true);
+      playQuestionAudio();
+
+      // Update usedQuestions and save to localStorage
+      const newUsedQuestions = [...usedQuestions, newQuestion.question];
+      setUsedQuestions(newUsedQuestions);
+      localStorage.setItem('usedQuestions', JSON.stringify(newUsedQuestions));
+      resetUsedQuestionsIfNeeded();
+    }
+  };
+
+  function shuffleArray(array) {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }
+
   if (loading) {
     return (
       <motion.div
@@ -352,7 +390,6 @@ function QuizGame() {
     );
   }
 
-  // Render start game screen (no changes)
   if (!gameStarted) {
     return (
       <motion.div
@@ -374,12 +411,10 @@ function QuizGame() {
     );
   }
 
-  // Render game over screen
   if (gameOver) {
     return <ScoreBoard scores={scores} teamNames={teamNames} />;
   }
 
-  // Render category selection screen (no changes)
   if (!currentSection) {
     return (
       <motion.div
@@ -445,7 +480,6 @@ function QuizGame() {
     );
   }
 
-  // Render section complete screen
   if (sectionComplete) {
     return (
       <RoundComplete
@@ -459,7 +493,6 @@ function QuizGame() {
 
   const availableLifelines = getAvailableLifelines();
 
-  // Render main game screen (with responsive changes)
   return (
     <motion.div
       className="flex flex-col md:flex-row h-screen w-screen overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100"
@@ -513,6 +546,14 @@ function QuizGame() {
           />
         </div>
         <div className="flex-grow flex items-center justify-center">
+        {showChangeButton && (
+        <button
+          onClick={changeQuestion}
+          className="px-2 py-2 text-xs bg-blue-500 text-white rounded-full hover:bg-yellow-600 transition-colors flex items-center space-x-1 mr-4"
+        >
+          <FontAwesomeIcon icon={faSync} className="w-3 h-3" />
+        </button>
+      )}
           <Question
             question={questions[currentQuestion]}
             onAnswer={handleAnswer}
@@ -577,14 +618,4 @@ function QuizGame() {
   );
 }
 
-function shuffleArray(array) {
-  const shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-}
-
 export default QuizGame;
-
