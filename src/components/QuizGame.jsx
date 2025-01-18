@@ -539,7 +539,7 @@ function QuizGame() {
         </motion.h2>
         <div className="flex justify-center items-center mb-4 lg:mb-8">
           <Timer
-            duration={60}
+            duration={90}
             onTimeUp={handleTimeUp}
             shouldReset={shouldResetTimer}
             isPaused={isTimerPaused}
